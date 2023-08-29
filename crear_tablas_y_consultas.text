@@ -1,0 +1,149 @@
+--Tabla Productos
+CREATE TABLE products (
+	sku SERIAL PRIMARY KEY,
+	product_name VARCHAR(20) NOT NULL,
+	product_description VARCHAR(50) NOT NULL,
+	product_price NUMERIC(10,2) NOT NULL,
+	product_inventory INT NOT NULL
+);
+
+--Tabla Tiendas
+CREATE TABLE Stores (
+	store_id SERIAL PRIMARY KEY,
+	store_city VARCHAR(20) NOT NULL,
+	store_address VARCHAR(20) NOT NULL,
+	store_district VARCHAR(20) NOT NULL
+);
+
+--Tabla Clientes
+CREATE TABLE Customers (
+	customer_id SERIAL PRIMARY KEY, 
+	customer_first_name VARCHAR(20) NOT NULL,
+	customer_last_name VARCHAR(20) NOT NULL,
+	customer_email VARCHAR(40) NOT NULL,
+	customer_cellphone VARCHAR(20) NOT NULL,
+	customer_address VARCHAR(20) NOT NULL,
+	customer_postal_code VARCHAR(10) NOT NULL,
+	customer_city VARCHAR(20) NOT NULL,
+	customer_distric VARCHAR(20) NOT NULL
+);
+
+--Tabla ventas
+CREATE TABLE Sales (
+	sale_n°_factura SERIAL PRIMARY KEY,
+	store_id INT NOT NULL,
+	customer_id INT NOT NULL,
+	SKU INT NOT NULL,
+	sale_amount INT NOT NULL,
+	sale_price NUMERIC(10,2) NOT NULL,
+	FOREIGN KEY (store_id) REFERENCES Stores (store_id),
+	FOREIGN KEY (customer_id) REFERENCES Customers (customer_id),
+	FOREIGN KEY (SKU) REFERENCES products (SKU)
+);
+
+--Ingresar datos a la tabla products
+INSERT INTO products VALUES (1,'Tomate','Legumbre',3.5,100);
+INSERT INTO products VALUES (2,'Cebolla','Legumbre',4.0,100);
+INSERT INTO products VALUES (3,'Papa','Tuberculo',6.8,100);
+INSERT INTO products VALUES (4,'Pollo','Carne Blanca',12.4,100);
+INSERT INTO products VALUES (5,'Carne','Carne Roja',15.6,100);
+--Consultar tabla products
+SELECT * FROM products;
+
+--Ingresar datos a la tabla stores
+INSERT  INTO stores VALUES (1,'Monterrey','cra 4 N° 7-80','Nueva Esperanza');
+INSERT  INTO stores VALUES (2,'Guadalajara','Calle 9a D 9 -23','Los Martires');
+INSERT  INTO stores VALUES (3,'Cancun','Cra 2 N° 8-34','Ruta del Sol');
+--Consultar tabla stores
+SELECT * FROM stores;
+
+--Ingresar datos a la tabla customers
+INSERT INTO customers VALUES (1,'Miguel','Correa','miguelcorrea15@hotmail.com','3148563275','Cra 4 N° 7-80','25462','Cancun','Ruta del Sol');
+INSERT INTO customers VALUES (2,'Maria','Gonzalez','mariagonzalez@gmail.com','345621357','Cra 5 N° 5-87','35463','Monterrey','Las Lagrimas');
+INSERT INTO customers VALUES (3,'Juan','Torres','juantorres@gmail.com','3654786542','CRA 6 N° 3-47','32478','Guadalajara','Carmelo');
+INSERT INTO customers VALUES (4,'Catalina','Díaz','catalinadias@gmail.com','324657245','CRA 3 N° 7-32','96547','Cancun','La Doctrina');
+INSERT INTO customers VALUES (5,'Luis','Salamanca','luissalamanca@gmail.com','3243264563','CRA 9 N° 7-96','32456','Monterrey','Santa Fe');
+--Consultar tabla stores
+SELECT * FROM customers;
+
+--Ingresar datos a la tabla sales
+--N°_factura - id_tienda - id_cliente - SKU - Cantidad - Total_Neto
+INSERT INTO sales VALUES (1,1,1,5,20,312);
+INSERT INTO sales VALUES (2,3,1,4,8,99.2);
+INSERT INTO sales VALUES (3,2,1,3,6,40.8);
+INSERT INTO sales VALUES (4,1,1,2,7,28);
+INSERT INTO sales VALUES (5,2,1,1,4,14);
+INSERT INTO sales VALUES (6,3,4,3,5,78);
+INSERT INTO sales VALUES (7,1,3,4,15,186);
+INSERT INTO sales VALUES (8,2,2,1,39,136.5);
+INSERT INTO sales VALUES (9,2,3,3,2,8);
+INSERT INTO sales VALUES (10,2,2,2,8,32);
+INSERT INTO sales VALUES (11,1,3,1,40,140);
+INSERT INTO sales VALUES (12,1,2,3,10,68);
+--Consultar tabla stores
+SELECT * FROM sales;
+
+--ID de los clientes de la Ciudad de Monterrey
+SELECT e.customer_id
+FROM sales e
+INNER JOIN stores d
+ON e.store_id = d.store_id
+WHERE d.store_city = 'Monterrey'
+GROUP BY e.customer_id;
+
+--ID y descripción de los productos que cuesten menos de 15 pesos
+SELECT product_name FROM products WHERE product_price<15;
+
+--ID y nombre de los clientes, cantidad vendida, y descripción 
+--del producto, en las ventas en las cuales se vendieron más de 10 unidades.
+SELECT e.customer_id, d.customer_first_name, f.product_name, e.sale_amount 
+FROM sales AS e
+INNER JOIN customers AS d
+ON e.customer_id = d.customer_id
+INNER JOIN products AS f
+ON e.sku = f.sku
+WHERE e.sale_amount >15;
+
+--ID y nombre de los clientes que no aparecen en la tabla de ventas
+--(Clientes que no han comprado productos)
+SELECT customer_id, customer_first_name
+FROM customers
+WHERE customer_id NOT IN (SELECT customer_id FROM sales);
+
+--ID y nombre de los clientes que han comprado todos los productos de la empresa.
+SELECT customer_id, customer_first_name
+FROM customers AS b
+WHERE (SELECT COUNT(DISTINCT sku)
+FROM sales AS d
+WHERE b.customer_id = d.customer_id) =(SELECT COUNT(*) FROM products); 
+ 
+--ID y nombre de cada cliente y la suma total (suma de cantidad) de los 
+--productos que ha comprado. Pista: (https://www.postgresqltutorial.com/postgresql-sum-function/).
+SELECT customer_id, customer_first_name, total
+FROM customers 
+NATURAL JOIN
+(SELECT customer_id,SUM(sale_amount) AS total
+FROM sales
+GROUP BY customer_id) t; 
+
+--ID de los productos que no han sido comprados por clientes de Guadalajara.
+SELECT sku
+FROM products
+WHERE sku NOT IN (SELECT sku
+FROM sales NATURAL JOIN stores 
+WHERE store_city = 'Guadalajara'); 						  
+						  
+--ID de los productos que se han vendido a clientes de Monterrey y que 
+--también se han vendido a clientes de Cancún.
+SELECT DISTINCT sku
+FROM sales NATURAL JOIN stores 
+WHERE store_city = 'Monterrey'
+AND sku IN (SELECT sku
+FROM products NATURAL JOIN sales
+WHERE store_city = 'Cancun'); 
+ 
+--Nombre de las ciudades en las que se han vendido todos los productos.
+SELECT store_city
+FROM stores NATURAL JOIN sales
+GROUP BY store_city
+HAVING COUNT(DISTINCT sku) = (SELECT COUNT(*) FROM products); 
